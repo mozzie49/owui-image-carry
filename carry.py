@@ -2,6 +2,8 @@
 import argparse
 import getpass
 import json
+import os
+import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -22,8 +24,9 @@ def read_json(path):
 
 def source_origin(value):
     p = urlsplit(value)
-    if p.scheme != 'https' or not p.hostname or p.username or p.password or p.query or p.fragment:
-        raise PackError('Source must be an HTTPS origin without credentials, query or fragment')
+    local_http = p.scheme == 'http' and p.hostname in ('127.0.0.1', '::1')
+    if (p.scheme != 'https' and not local_http) or not p.hostname or p.username or p.password or p.query or p.fragment:
+        raise PackError('Use HTTPS, or HTTP on literal 127.0.0.1 / ::1 only; no embedded credentials, query or fragment')
     if p.path not in ('', '/'):
         raise PackError('This experimental version supports root-mounted instances only')
     # Force invalid ports to fail before any credential prompt or connection.
@@ -77,7 +80,7 @@ def main():
     p.add_argument('input', help='Existing Open WebUI JSON export; keep an unchanged backup')
     p.add_argument('output', help='New output JSON; existing files are never overwritten')
     group = p.add_mutually_exclusive_group(required=True)
-    group.add_argument('--source', help='HTTPS origin of the source Open WebUI instance')
+    group.add_argument('--source', help='Source HTTPS origin, or literal loopback HTTP for an instance on this computer')
     group.add_argument('--asset-map', help='Local JSON mapping of file IDs to relative image paths')
     args = p.parse_args()
     try:
@@ -89,6 +92,8 @@ def main():
             packed, manifest = pack_export(exported, local_resolver(args.asset_map))
         else:
             origin = source_origin(args.source)
+            if not sys.stdin.isatty():
+                raise PackError('Source mode needs an interactive terminal for hidden token entry')
             print('Only image bytes will be read from ' + origin + '. No source chats will be changed.')
             print('Enter an EXISTING source API token. It is not saved. No token is created by this tool.')
             token = getpass.getpass('Source API token: ')
@@ -101,7 +106,7 @@ def main():
         if len(data) > MAX_OUTPUT_BYTES:
             raise PackError('Packed export exceeds 150 MiB')
         # Exclusive create only after the complete transformation succeeds.
-        with output.open('xb') as f:
+        with os.fdopen(os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), 'wb') as f:
             f.write(data)
         print('Created ' + str(output) + '; embedded ' + str(len(manifest)) + ' distinct source images.')
         print('This file contains private chats and images. Keep it private; test import on a disposable destination first.')

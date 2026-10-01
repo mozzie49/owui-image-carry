@@ -43,9 +43,7 @@ jobs:
       - name: Require completed synthetic evidence
         run: python -c "import json; r=json.load(open('route-report.json')); assert r['real_routes'] and r['image_bytes_in_continuation_preserved']"
       - name: Install browser test runtime
-        run: |
-          uv pip install --system playwright==1.60.0
-          python -m playwright install --with-deps chromium
+        run: uv pip install --system playwright==1.60.0
       - name: Verify actual destination UI renders imported image
         run: python check_browser.py 2>&1 | tee browser-check.log
       - uses: actions/upload-artifact@v4
@@ -60,4 +58,6 @@ jobs:
             browser-check.log
             browser-server.log
             browser-imported-image.png
+            browser-failure.png
+            browser-failure.json
           if-no-files-found: warn
