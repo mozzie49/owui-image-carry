@@ -1,5 +1,8 @@
 import io
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,13 +10,17 @@ import httpx
 from PIL import Image
 from carry import source_origin, fetch_image, local_resolver
 from pack_images import PackError
+from test_pack_images import fixture, png
 
 
 class CarryTest(unittest.TestCase):
     def test_origin_validation(self):
         self.assertEqual(source_origin('https://example.com/'), 'https://example.com')
+        self.assertEqual(source_origin('http://127.0.0.1:8080'), 'http://127.0.0.1:8080')
+        self.assertEqual(source_origin('http://[::1]:8080'), 'http://[::1]:8080')
         for value in ['http://example.com', 'https://user:pass@example.com', 'https://example.com/a',
-                      'https://example.com/?key=x', 'https://example.com/#x', 'https://example.com:bad']:
+                      'https://example.com/?key=x', 'https://example.com/#x', 'https://example.com:bad',
+                      'http://localhost:8080', 'http://127.0.0.1.evil.example', 'http://192.168.1.1']:
             with self.subTest(value=value), self.assertRaises((PackError, ValueError)):
                 source_origin(value)
 
@@ -52,6 +59,23 @@ class CarryTest(unittest.TestCase):
             (root / 'image.png').write_bytes(b'local-fixture')
             mapping.write_text(json.dumps({'x': 'image.png'}))
             self.assertEqual(local_resolver(mapping)('x'), b'local-fixture')
+
+    def test_cli_private_output_and_no_overwrite(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / 'image.png').write_bytes(png())
+            (root / 'assets.json').write_text(json.dumps({'test-image': 'image.png'}))
+            (root / 'input.json').write_text(json.dumps(fixture()))
+            command = [sys.executable, str(Path(__file__).with_name('carry.py')), str(root / 'input.json'),
+                       str(root / 'output.json'), '--asset-map', str(root / 'assets.json')]
+            r = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            before = (root / 'output.json').read_bytes()
+            if os.name == 'posix':
+                self.assertEqual((root / 'output.json').stat().st_mode & 0o777, 0o600)
+            r = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 1)
+            self.assertEqual((root / 'output.json').read_bytes(), before)
 
 
 if __name__ == '__main__':

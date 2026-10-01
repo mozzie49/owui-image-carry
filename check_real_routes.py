@@ -25,6 +25,7 @@ os.environ['HF_HUB_OFFLINE'] = '1'
 os.environ['USE_SLIM_DOCKER'] = 'true'
 os.environ['ENABLE_PLUGINS'] = 'false'
 os.environ['STORAGE_PROVIDER'] = 'local'
+os.environ['FROM_INIT_PY'] = 'true'
 os.environ['CUSTOM_NAME'] = ''
 os.environ['WEBSOCKET_MANAGER'] = ''
 

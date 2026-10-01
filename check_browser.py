@@ -26,8 +26,8 @@ def main():
                 'CORS_ALLOW_ORIGIN': ORIGIN})
     env.pop('DATABASE_URL', None)
     log = (ROOT / 'browser-server.log').open('w')
-    server = subprocess.Popen(['python', '-m', 'uvicorn', 'open_webui.main:app',
-                               '--host', '127.0.0.1', '--port', '8765'], env=env, stdout=log, stderr=subprocess.STDOUT)
+    server = subprocess.Popen(['open-webui', 'serve', '--host', '127.0.0.1', '--port', '8765'],
+                              env=env, stdout=log, stderr=subprocess.STDOUT)
     try:
         with httpx.Client(base_url=ORIGIN, timeout=20, trust_env=False) as client:
             for attempt in range(120):
@@ -56,28 +56,34 @@ def main():
             old_url = original[0]['chat']['history']['messages']['u1']['files'][0]['url']
             assert client.get(old_url, headers=headers).status_code == 404
             with sync_playwright() as p:
-                browser = p.chromium.launch()
+                browser = p.chromium.launch(channel='chrome')
                 page = browser.new_page(viewport={'width': 1440, 'height': 1000})
-                # Normal UI sign-in, not an injected authenticated state.
-                page.goto(ORIGIN + '/auth', wait_until='domcontentloaded')
-                page.locator('input[type=email]').fill('fixture@example.invalid')
-                page.locator('input[type=password]').fill(password)
-                page.locator('input[type=password]').press('Enter')
-                page.wait_for_url(lambda url: '/auth' not in url, timeout=30000)
-                page.goto(ORIGIN + '/c/' + chat_id, wait_until='domcontentloaded')
-                # Locate exact fixture image by DOM source; other avatars don't qualify.
-                fixture_image = page.locator('img[src="' + image_url + '"]')
-                fixture_image.wait_for(state='visible', timeout=30000)
-                page.wait_for_function('(src) => Array.from(document.images).some(i => i.src === src && i.complete && i.naturalWidth === 24 && i.naturalHeight === 16)', arg=image_url)
-                assert page.get_by_text('Selected branch.', exact=True).is_visible()
-                assert page.get_by_text('Keep that image in context.', exact=True).is_visible()
-                assert page.get_by_text('First branch.', exact=True).count() == 0
-                page.screenshot(path=str(ROOT / 'browser-imported-image.png'), full_page=True)
-                (ROOT / 'browser-report.json').write_text(json.dumps({'version': '0.11.4',
-                    'real_app_startup': True, 'ui_signin': True, 'real_json_import_api': True,
-                    'source_asset_missing_on_destination': True, 'inline_image_rendered': True,
-                    'natural_width': 24, 'natural_height': 16, 'selected_branch_rendered': True,
-                    'model_called': False, 'synthetic_fixture_only': True}, indent=2))
+                try:
+                    # Normal UI sign-in, not an injected authenticated state.
+                    page.goto(ORIGIN + '/auth', wait_until='domcontentloaded')
+                    page.locator('input[type=email]').fill('fixture@example.invalid')
+                    page.locator('input[type=password]').fill(password)
+                    page.locator('input[type=password]').press('Enter')
+                    page.wait_for_url(lambda url: '/auth' not in url, timeout=30000)
+                    page.goto(ORIGIN + '/c/' + chat_id, wait_until='domcontentloaded')
+                    # Locate exact fixture image by DOM source; other avatars don't qualify.
+                    fixture_image = page.locator('img[src="' + image_url + '"]')
+                    fixture_image.wait_for(state='visible', timeout=30000)
+                    page.wait_for_function('(src) => Array.from(document.images).some(i => i.src === src && i.complete && i.naturalWidth === 24 && i.naturalHeight === 16)', arg=image_url)
+                    assert page.get_by_text('Selected branch.', exact=True).is_visible()
+                    assert page.get_by_text('Keep that image in context.', exact=True).is_visible()
+                    assert page.get_by_text('First branch.', exact=True).count() == 0
+                    page.screenshot(path=str(ROOT / 'browser-imported-image.png'), full_page=True)
+                    (ROOT / 'browser-report.json').write_text(json.dumps({'version': '0.11.4',
+                        'real_app_startup': True, 'ui_signin': True, 'real_json_import_api': True,
+                        'source_asset_missing_on_destination': True, 'inline_image_rendered': True,
+                        'natural_width': 24, 'natural_height': 16, 'selected_branch_rendered': True,
+                        'model_called': False, 'synthetic_fixture_only': True}, indent=2))
+                except Exception:
+                    page.screenshot(path=str(ROOT / 'browser-failure.png'), full_page=True)
+                    safe_inputs = page.locator('input').evaluate_all("els => els.map(e => ({type:e.type,name:e.name,placeholder:e.placeholder}))")
+                    (ROOT / 'browser-failure.json').write_text(json.dumps({'url':page.url,'text':page.locator('body').inner_text(),'inputs':safe_inputs}, indent=2))
+                    raise
                 browser.close()
             print('BROWSER_IMAGE_RENDER_PASSED')
     finally:

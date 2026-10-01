@@ -1,0 +1,110 @@
+[
+  {
+    "id": "e296459e-ecc2-493a-9b13-566916672e7d",
+    "user_id": "fixture-user",
+    "title": "Synthetic image portability check",
+    "chat": {
+      "title": "Synthetic image portability check",
+      "history": {
+        "messages": {
+          "u1": {
+            "id": "u1",
+            "role": "user",
+            "content": "What color is this synthetic rectangle?",
+            "parentId": null,
+            "childrenIds": [
+              "a1",
+              "a2"
+            ],
+            "timestamp": 1,
+            "files": [
+              {
+                "id": "source-image",
+                "type": "image",
+                "url": "/api/v1/files/source-image/content"
+              }
+            ]
+          },
+          "a1": {
+            "id": "a1",
+            "role": "assistant",
+            "content": "Fixture branch one.",
+            "parentId": "u1",
+            "childrenIds": [],
+            "timestamp": 2
+          },
+          "a2": {
+            "id": "a2",
+            "role": "assistant",
+            "content": "Fixture alternate branch.",
+            "parentId": "u1",
+            "childrenIds": [
+              "u2"
+            ],
+            "timestamp": 3
+          },
+          "u2": {
+            "id": "u2",
+            "role": "user",
+            "content": "Keep the image in context.",
+            "parentId": "a2",
+            "childrenIds": [],
+            "timestamp": 4
+          }
+        },
+        "currentId": "u2"
+      },
+      "messages": [
+        {
+          "id": "u1",
+          "role": "user",
+          "content": "What color is this synthetic rectangle?",
+          "parentId": null,
+          "childrenIds": [
+            "a1",
+            "a2"
+          ],
+          "timestamp": 1,
+          "files": [
+            {
+              "id": "source-image",
+              "type": "image",
+              "url": "/api/v1/files/source-image/content"
+            }
+          ]
+        },
+        {
+          "id": "a2",
+          "role": "assistant",
+          "content": "Fixture alternate branch.",
+          "parentId": "u1",
+          "childrenIds": [
+            "u2"
+          ],
+          "timestamp": 3
+        },
+        {
+          "id": "u2",
+          "role": "user",
+          "content": "Keep the image in context.",
+          "parentId": "a2",
+          "childrenIds": [],
+          "timestamp": 4
+        }
+      ]
+    },
+    "created_at": 1790867159,
+    "updated_at": 1790867159,
+    "share_id": null,
+    "archived": false,
+    "pinned": false,
+    "meta": {},
+    "variables": {},
+    "folder_id": null,
+    "tasks": null,
+    "summary": null,
+    "current_message_id": "u2",
+    "last_read_at": null,
+    "timer_at": null
+  }
+]
