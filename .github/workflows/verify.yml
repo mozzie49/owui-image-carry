@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+defaults:
+  run:
+    shell: bash
 jobs:
   unit:
     runs-on: ubuntu-latest
@@ -37,6 +40,14 @@ jobs:
         run: CHECK_MODE=source python check_real_routes.py 2>&1 | tee source-routes.log
       - name: Clean destination import and continuation preprocessing
         run: CHECK_MODE=destination python check_real_routes.py 2>&1 | tee destination-routes.log
+      - name: Require completed synthetic evidence
+        run: python -c "import json; r=json.load(open('route-report.json')); assert r['real_routes'] and r['image_bytes_in_continuation_preserved']"
+      - name: Install browser test runtime
+        run: |
+          uv pip install --system playwright==1.60.0
+          python -m playwright install --with-deps chromium
+      - name: Verify actual destination UI renders imported image
+        run: python check_browser.py 2>&1 | tee browser-check.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -45,4 +56,8 @@ jobs:
             *-routes.log
             route-report.json
             route-source-evidence.json
+            browser-report.json
+            browser-check.log
+            browser-server.log
+            browser-imported-image.png
           if-no-files-found: warn
