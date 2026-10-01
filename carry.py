@@ -1,6 +1,7 @@
 """Read-only source image packer for Open WebUI JSON exports (experimental)."""
 import argparse
 import getpass
+import io
 import json
 import os
 import sys
@@ -12,6 +13,21 @@ from pack_images import pack_export, PackError, MAX_IMAGE_BYTES
 
 MAX_JSON_BYTES = 50 * 1024 * 1024
 MAX_OUTPUT_BYTES = 150 * 1024 * 1024
+
+
+def encode_bounded(value, limit=MAX_OUTPUT_BYTES):
+    """Stop serialization at the byte budget, including repeated image data.
+
+    The image budget counts distinct images, but JSON repeats each attachment
+    occurrence. Do not build an unbounded complete string before checking it.
+    """
+    buffer = io.BytesIO()
+    for fragment in json.JSONEncoder(ensure_ascii=False, indent=2).iterencode(value):
+        chunk = fragment.encode('utf-8')
+        if buffer.tell() + len(chunk) > limit:
+            raise PackError('Packed export exceeds output byte budget')
+        buffer.write(chunk)
+    return buffer.getvalue()
 
 
 def read_json(path):
@@ -102,9 +118,7 @@ def main():
             with httpx.Client(timeout=30, follow_redirects=False, trust_env=False) as client:
                 packed, manifest = pack_export(exported, lambda key: fetch_image(client, origin, token, key))
             token = None
-        data = json.dumps(packed, ensure_ascii=False, indent=2).encode('utf-8')
-        if len(data) > MAX_OUTPUT_BYTES:
-            raise PackError('Packed export exceeds 150 MiB')
+        data = encode_bounded(packed)
         # Exclusive create only after the complete transformation succeeds.
         with os.fdopen(os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), 'wb') as f:
             f.write(data)

@@ -8,12 +8,34 @@ import unittest
 from pathlib import Path
 import httpx
 from PIL import Image
-from carry import source_origin, fetch_image, local_resolver
+from carry import source_origin, fetch_image, local_resolver, encode_bounded
+from unittest.mock import patch
 from pack_images import PackError
 from test_pack_images import fixture, png
 
 
 class CarryTest(unittest.TestCase):
+    def test_bounded_encoding_preserves_unicode_and_exact_limit(self):
+        value = {'message': '中文🙂', 'images': ['fixture', 'fixture']}
+        expected = json.dumps(value, ensure_ascii=False, indent=2).encode('utf-8')
+        self.assertEqual(encode_bounded(value, len(expected)), expected)
+        with self.assertRaises(PackError):
+            encode_bounded(value, len(expected) - 1)
+
+    def test_bounded_encoding_stops_before_serializing_remaining_images(self):
+        def fragments(_):
+            yield '['
+            yield 'x' * 20
+            self.fail('Serialization continued beyond the output budget')
+        with patch('carry.json.JSONEncoder.iterencode', side_effect=fragments):
+            with self.assertRaises(PackError):
+                encode_bounded(['repeated-image'] * 100, 10)
+
+    def test_repeated_images_count_toward_serialized_budget(self):
+        image = 'data:image/png;base64,' + 'A' * 100
+        with self.assertRaises(PackError):
+            encode_bounded([image] * 100, 1000)
+
     def test_origin_validation(self):
         self.assertEqual(source_origin('https://example.com/'), 'https://example.com')
         self.assertEqual(source_origin('http://127.0.0.1:8080'), 'http://127.0.0.1:8080')
