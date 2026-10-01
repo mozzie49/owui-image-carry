@@ -1,0 +1,48 @@
+name: Verify image portability
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest -v test_pack_images test_carry
+  real-openwebui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      UV_TORCH_BACKEND: cpu
+      OFFLINE_MODE: 'true'
+      HF_HUB_OFFLINE: '1'
+      USE_SLIM_DOCKER: 'true'
+      ENABLE_PLUGINS: 'false'
+      CUSTOM_NAME: ''
+      WEBSOCKET_MANAGER: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install uv==0.12.19
+      - run: uv pip install --system 'open-webui==0.11.4' -r requirements.txt
+      - name: Source upload and export using real routes
+        run: CHECK_MODE=source python check_real_routes.py 2>&1 | tee source-routes.log
+      - name: Clean destination import and continuation preprocessing
+        run: CHECK_MODE=destination python check_real_routes.py 2>&1 | tee destination-routes.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthetic-integration-evidence
+          path: |
+            *-routes.log
+            route-report.json
+            route-source-evidence.json
+          if-no-files-found: warn
