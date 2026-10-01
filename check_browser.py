@@ -70,6 +70,11 @@ def main():
                     fixture_image = page.locator('img[src="' + image_url + '"]')
                     fixture_image.wait_for(state='visible', timeout=30000)
                     page.wait_for_function('(src) => Array.from(document.images).some(i => i.src === src && i.complete && i.naturalWidth === 24 && i.naturalHeight === 16)', arg=image_url)
+                    # Fresh accounts show release notes; dismiss through the real UI
+                    # so the evidence screenshot does not hide the imported chat.
+                    release_notes = page.get_by_text("Okay, Let's Go!", exact=True)
+                    release_notes.click(timeout=10000)
+                    release_notes.wait_for(state='hidden', timeout=10000)
                     assert page.get_by_text('Selected branch.', exact=True).is_visible()
                     assert page.get_by_text('Keep that image in context.', exact=True).is_visible()
                     assert page.get_by_text('First branch.', exact=True).count() == 0

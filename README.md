@@ -2,7 +2,7 @@
 
 Make an Open WebUI JSON chat export carry its uploaded image bytes, rather than only paths that point back to the old server.
 
-**Status: experimental, not a complete server migration tool.** The [synthetic backend check](https://github.com/mozzie49/owui-image-carry/actions/runs/36883534349) passed against real Open WebUI 0.11.4 upload, file-authorization, export and import routes, and its continuation-message preprocessing. Image bytes and the selected conversation branch are preserved. Browser rendering and real-user trial are not yet verified. Do not delete your source instance or original export.
+**Status: experimental, not a complete server migration tool.** The [synthetic compatibility checks](https://github.com/mozzie49/owui-image-carry/actions/runs/36886657536) passed against real Open WebUI 0.11.4 upload, file-authorization, export and import routes, continuation-message preprocessing, and image rendering in the actual app after UI sign-in. Image bytes and the selected conversation branch are preserved. No real model was called and no external user trial has been completed. Do not delete your source instance or original export.
 
 ## Why this exists
 
@@ -69,10 +69,10 @@ For bug reports, use made-up text and a tiny synthetic image, never private chat
 python -m unittest -v test_pack_images test_carry
 ```
 
-`check_real_routes.py` is a separate integration harness using the installed official Open WebUI package and two fresh databases. It mounts real import/export/file routers with synthetic user identity overrides; actual file authorization remains enabled. It uses no real model endpoint. A passing backend fixture would not establish browser rendering, authentication-flow coverage or real-user success.
+`check_real_routes.py` uses the installed official Open WebUI package and two fresh databases. It mounts real import/export/file routers with synthetic user identity overrides; actual file authorization remains enabled. `check_browser.py` starts the complete app through its official CLI, signs in through the UI and verifies the inline image and selected branch render on a clean destination. These checks use invented data and no real model endpoint; they do not establish external user success, every authentication setup or every attachment type.
 
 The development process is AI-assisted. This is an independent project, not affiliated with or endorsed by Open WebUI. Original helper code is MIT licensed. The integration dependency Open WebUI retains its own license and branding; its source is not bundled here.
 
 ## 中文说明
 
-这是针对“迁移 Open WebUI 对话后图片丢失”的实验工具。真实上传、权限、导出、导入接口以及继续对话的消息预处理已通过合成样例检查；浏览器显示和真实用户试用尚未验证。仓库自带虚构对话和小图片，不需要账号即可尝试转换。请保留原始导出和原服务器，不要把私人对话、图片或 API token 提交到公开 issue。
+这是针对“迁移 Open WebUI 对话后图片丢失”的实验工具。真实上传、权限、导出、导入接口、继续对话的消息预处理，以及真实应用登录后的图片显示均已通过虚构样例检查；没有调用真实模型，也还没有外部用户试用结果。仓库自带虚构对话和小图片，不需要账号即可尝试转换。请保留原始导出和原服务器，不要把私人对话、图片或 API token 提交到公开 issue。
